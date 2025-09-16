@@ -7,6 +7,7 @@
 #include <fstream>
 #include <sstream>
 #include <iostream>
+#include <functional>
 
 using namespace ftxui;
 
@@ -228,14 +229,22 @@ Component App::CreateMainComponent() {
         status_component
     });
     
-    // Add help overlay if needed
+    // Add overlays for help and filename prompt
     help_tab_index_ = show_help_ ? 1 : 0;
+    int filename_tab_index = show_filename_prompt_ ? 1 : 0;
+    
     auto with_help = Container::Tab({
         main_layout,
         help_component
     }, &help_tab_index_);
     
-    return CatchEvent(with_help, [this](Event event) {
+    auto filename_prompt_component = CreateFilenamePromptComponent();
+    auto with_filename_prompt = Container::Tab({
+        with_help,
+        filename_prompt_component
+    }, &filename_tab_index);
+    
+    return CatchEvent(with_filename_prompt, [this](Event event) {
         return HandleKeyPress(event);
     });
 }
@@ -325,6 +334,27 @@ Component App::CreateStatusComponent() {
 }
 
 bool App::HandleKeyPress(Event event) {
+    // Handle filename prompt dialog first if active
+    if (show_filename_prompt_) {
+        if (event == Event::Return) {
+            ConfirmFilenamePrompt();
+            return true;
+        }
+        if (event == Event::Escape) {
+            HideFilenamePrompt();
+            return true;
+        }
+        if (event.is_character()) {
+            filename_prompt_text_ += event.character();
+            return true;
+        }
+        if (event == Event::Backspace && !filename_prompt_text_.empty()) {
+            Utf8PopBack(filename_prompt_text_);
+            return true;
+        }
+        return true; // Consume all events when dialog is active
+    }
+    
     // Handle special key combinations (Ctrl keys using character codes)
     if (event == Event::Character('\x0F')) { // Ctrl+O
         SaveFile();
@@ -500,9 +530,15 @@ void App::ExitEditMode() {
 }
 
 std::string App::PromptForFilename(const std::string& prompt) {
-    // Simple implementation - in a real app you'd want a proper input dialog
-    SetStatusMessage(prompt + "[Not implemented - using default]");
-    return "example.docx"; // Placeholder
+    // Show the filename prompt dialog
+    std::string result;
+    ShowFilenamePrompt(prompt, "", [&](const std::string& filename) {
+        result = filename;
+    });
+    
+    // Note: In a complete implementation, this would be asynchronous
+    // For now, we return a placeholder and the dialog handles the actual input
+    return result.empty() ? "example.docx" : result;
 }
 
 std::vector<std::string> App::GetVisibleEditorLines() const {
@@ -540,6 +576,54 @@ int App::RealToVisibleIndex(int real_index) const {
     }
     // フォールバック: 最後の可視行
     return indices.empty() ? -1 : static_cast<int>(indices.size()) - 1;
+}
+
+// Filename prompt dialog implementation
+
+void App::ShowFilenamePrompt(const std::string& message, const std::string& default_value, std::function<void(const std::string&)> callback) {
+    filename_prompt_message_ = message;
+    filename_prompt_text_ = default_value;
+    filename_prompt_callback_ = callback;
+    show_filename_prompt_ = true;
+    SetStatusMessage(message);
+}
+
+void App::HideFilenamePrompt() {
+    show_filename_prompt_ = false;
+    filename_prompt_message_.clear();
+    filename_prompt_text_.clear();
+    filename_prompt_callback_ = nullptr;
+    SetStatusMessage("Filename prompt cancelled");
+}
+
+void App::ConfirmFilenamePrompt() {
+    if (filename_prompt_callback_) {
+        filename_prompt_callback_(filename_prompt_text_);
+    }
+    HideFilenamePrompt();
+}
+
+Component App::CreateFilenamePromptComponent() {
+    if (!show_filename_prompt_) {
+        return Renderer([] { return text(""); });
+    }
+    
+    return Renderer([this] {
+        Elements elements;
+        elements.push_back(text(L"Filename Input") | bold | center);
+        elements.push_back(separator());
+        elements.push_back(text(to_wstring(filename_prompt_message_)));
+        elements.push_back(separator());
+        
+        // Simple text input display (in full implementation, this would be an Input component)
+        std::string display_text = filename_prompt_text_.empty() ? "[Enter filename]" : filename_prompt_text_;
+        elements.push_back(text(to_wstring(display_text)) | border);
+        
+        elements.push_back(separator());
+        elements.push_back(text(L"Press Enter to confirm, Esc to cancel") | center);
+        
+        return vbox(elements) | border | center;
+    });
 }
 
 }

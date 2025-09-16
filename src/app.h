@@ -42,6 +42,12 @@ private:
     std::string current_input_;
     std::string status_message_;
     
+    // Filename prompt dialog state
+    bool show_filename_prompt_ = false;
+    std::string filename_prompt_message_;
+    std::string filename_prompt_text_;
+    std::function<void(const std::string&)> filename_prompt_callback_;
+    
     // File operations
     bool LoadFile(const std::string& filename);
     bool SaveFile();
@@ -68,6 +74,12 @@ private:
     ftxui::Component CreatePreviewComponent();
     ftxui::Component CreateHelpComponent();
     ftxui::Component CreateStatusComponent();
+    ftxui::Component CreateFilenamePromptComponent();
+    
+    // Filename prompt operations
+    void ShowFilenamePrompt(const std::string& message, const std::string& default_value, std::function<void(const std::string&)> callback);
+    void HideFilenamePrompt();
+    void ConfirmFilenamePrompt();
     
     // Event handlers
     bool HandleKeyPress(ftxui::Event event);

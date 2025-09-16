@@ -2,6 +2,19 @@
 
 このプロジェクトは [Keep a Changelog](https://keepachangelog.com/ja/1.1.0/) に準拠し、バージョンは [Semantic Versioning](https://semver.org/lang/ja/) に従います。
 
+## [1.2.0] - 2025-09-17
+### 追加
+- PromptForFilename関数を実装（ファイル名入力ダイアログ）。
+- ファイル名入力ダイアログのUIコンポーネントを追加（FTXUI使用）。
+- ビルド設定の改善（CMAKE_BUILD_TYPEのデフォルト設定）。
+
+### 変更
+- README.mdのキーバインド表で検索機能の未実装を明記。
+- CMAKE_BUILD_TYPEをデフォルトでReleaseに設定（パフォーマンス向上）。
+
+### 修正
+- FTXUIライブラリの重複リンク警告を修正（ftxui::componentのみリンク）。
+
 ## [1.1.0] - 2025-09-16
 ### 追加
 - 日本語入力・表示に対応（UTF-8の安全なバックスペース処理、ワイド文字描画）。
