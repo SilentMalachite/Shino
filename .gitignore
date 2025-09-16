@@ -1,0 +1,18 @@
+# Build artifacts
+build/
+dist/
+
+# OS files
+.DS_Store
+
+# CMake
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+
+# Editors/IDE
+.idea/
+.vscode/
+*.code-workspace
+
