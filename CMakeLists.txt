@@ -6,55 +6,65 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
 endif()
 
-# Find required packages
-find_package(PkgConfig REQUIRED)
+option(SHINO_BUILD_APP "Build ShinoEditor application" ON)
 
-# Try to find FTXUI
-find_package(ftxui QUIET)
-if(NOT ftxui_FOUND)
-  # If not found, use FetchContent to download it
-  include(FetchContent)
-  FetchContent_Declare(
-    ftxui
-    GIT_REPOSITORY https://github.com/ArthurSonzogni/ftxui
-    GIT_TAG v5.0.0
-  )
-  FetchContent_MakeAvailable(ftxui)
+# Find optional packages
+find_package(PkgConfig QUIET)
+
+if(SHINO_BUILD_APP)
+  # Try to find FTXUI
+  find_package(ftxui QUIET)
+  if(NOT ftxui_FOUND)
+    # If not found, use FetchContent to download it
+    include(FetchContent)
+    FetchContent_Declare(
+      ftxui
+      GIT_REPOSITORY https://github.com/ArthurSonzogni/ftxui
+      GIT_TAG v5.0.0
+    )
+    FetchContent_MakeAvailable(ftxui)
+  endif()
 endif()
 
-# Try to find md4c (optional)
-pkg_check_modules(MD4C md4c-html)
-if(MD4C_FOUND)
+if(SHINO_BUILD_APP)
+  # Try to find md4c (optional)
+  if(PkgConfig_FOUND)
+    pkg_check_modules(MD4C md4c-html)
+  endif()
+  if(MD4C_FOUND)
     message(STATUS "Found md4c-html")
     add_compile_definitions(HAVE_MD4C)
-else()
+  else()
     message(STATUS "md4c-html not found, using fallback renderer")
+  endif()
 endif()
 
-# Create executable
-add_executable(ShinoEditor
-  src/main.cpp
-  src/app.cpp
-  src/block_model.cpp
-  src/markdown_renderer.cpp
-  src/pandoc_io.cpp
-  src/tui_bindings.cpp
-)
+if(SHINO_BUILD_APP)
+  # Create executable
+  add_executable(ShinoEditor
+    src/main.cpp
+    src/app.cpp
+    src/block_model.cpp
+    src/markdown_renderer.cpp
+    src/pandoc_io.cpp
+    src/tui_bindings.cpp
+  )
 
-# Link libraries
-target_link_libraries(ShinoEditor
-  PRIVATE ftxui::component
-)
+  # Link libraries
+  target_link_libraries(ShinoEditor
+    PRIVATE ftxui::component
+  )
 
-# Add md4c if available
-if(MD4C_FOUND)
-  target_link_libraries(ShinoEditor PRIVATE ${MD4C_LIBRARIES})
-  target_include_directories(ShinoEditor PRIVATE ${MD4C_INCLUDE_DIRS})
-  target_compile_options(ShinoEditor PRIVATE ${MD4C_CFLAGS_OTHER})
+  # Add md4c if available
+  if(MD4C_FOUND)
+    target_link_libraries(ShinoEditor PRIVATE ${MD4C_LIBRARIES})
+    target_include_directories(ShinoEditor PRIVATE ${MD4C_INCLUDE_DIRS})
+    target_compile_options(ShinoEditor PRIVATE ${MD4C_CFLAGS_OTHER})
+  endif()
+
+  # Install target
+  install(TARGETS ShinoEditor DESTINATION bin)
 endif()
-
-# Install target
-install(TARGETS ShinoEditor DESTINATION bin)
 
 # -----------------------
 # Tests (header-only style)
