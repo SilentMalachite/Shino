@@ -3,6 +3,11 @@
 このプロジェクトは [Keep a Changelog](https://keepachangelog.com/ja/1.1.0/) に準拠し、バージョンは [Semantic Versioning](https://semver.org/lang/ja/) に従います。
 
 ## [1.2.0] - 2025-09-17
+## [1.2.1] - 2025-09-19
+### 修正
+- CI: Windows での `PkgConfig` 非存在により Configure が失敗する問題を修正。
+- `CMakeLists.txt` で `PkgConfig` を任意検出に変更し、`md4c` 検出を `PkgConfig_FOUND` でガード。
+
 ### 追加
 - PromptForFilename関数を実装（ファイル名入力ダイアログ）。
 - ファイル名入力ダイアログのUIコンポーネントを追加（FTXUI使用）。
@@ -33,4 +38,3 @@
 
 ## [1.0.0] - 2025-01-01
 - 初期リリース。
-
