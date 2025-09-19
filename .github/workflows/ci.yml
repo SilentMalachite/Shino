@@ -38,13 +38,14 @@ jobs:
         run: ctest --test-dir build --output-on-failure -C ${{ matrix.build_type }}
 
       - name: Verify binary exists
+        shell: bash
         run: |
           set -e
           if [[ "${{ runner.os }}" == "Windows" ]]; then
-            BIN=$(ls build/**/ShinoEditor*.exe | head -n1)
+            BIN=$(ls build/**/ShinoEditor*.exe 2>/dev/null | head -n1)
           else
-            BIN=$(ls build/ShinoEditor || true)
-            if [[ -z "$BIN" ]]; then BIN=$(ls build/**/ShinoEditor | head -n1); fi
+            BIN=$(ls build/ShinoEditor 2>/dev/null || true)
+            if [[ -z "$BIN" ]]; then BIN=$(ls build/**/ShinoEditor 2>/dev/null | head -n1); fi
           fi
           if [[ -z "$BIN" ]]; then
             echo "Error: Built binary not found"
