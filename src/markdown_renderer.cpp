@@ -1,15 +1,19 @@
 #include "markdown_renderer.h"
 #ifdef HAVE_MD4C
 #include <md4c-html.h>
+// 後方互換用: 一部の md4c には MD_FLAG_TASKLISTS が存在しない
+#ifndef MD_FLAG_TASKLISTS
+#define MD_FLAG_TASKLISTS 0
+#endif
 #endif
 #include <sstream>
 #include <regex>
 
 namespace ShinoEditor {
 
-MarkdownRenderer::MarkdownRenderer() {}
+MarkdownRenderer::MarkdownRenderer() = default;
 
-MarkdownRenderer::~MarkdownRenderer() {}
+MarkdownRenderer::~MarkdownRenderer() = default;
 
 std::string MarkdownRenderer::RenderToHtml(const std::string& markdown) const {
 #ifdef HAVE_MD4C
@@ -22,9 +26,11 @@ std::string MarkdownRenderer::RenderToHtml(const std::string& markdown) const {
         ctx->output->append(text, size);
     };
     
-    int result = md_html(markdown.c_str(), markdown.length(),
+    // md4c のパーサーフラグを設定（存在しないフラグは 0 として扱う）
+    unsigned parser_flags = MD_FLAG_TABLES | MD_FLAG_STRIKETHROUGH | MD_FLAG_TASKLISTS;
+    int result = md_html(markdown.c_str(), (MD_SIZE)markdown.size(),
                         process_output, &context,
-                        MD_FLAG_TABLES | MD_FLAG_FENCEDCODE | MD_FLAG_STRIKETHROUGH,
+                        parser_flags,
                         0);
     
     if (result != 0) {
@@ -39,26 +45,32 @@ std::string MarkdownRenderer::RenderToHtml(const std::string& markdown) const {
 }
 
 std::string MarkdownRenderer::RenderToText(const std::string& markdown) const {
-    // Simple text rendering - strip markdown syntax
-    std::string text = markdown;
-    
-    // Remove headers
-    text = std::regex_replace(text, std::regex(R"(^#{1,6}\s*)"), "");
-    
-    // Remove bold/italic
-    text = std::regex_replace(text, std::regex(R"(\*\*([^*]+)\*\*)"), "$1");
-    text = std::regex_replace(text, std::regex(R"(\*([^*]+)\*)"), "$1");
-    
-    // Remove links
-    text = std::regex_replace(text, std::regex(R"(\[([^\]]+)\]\([^)]+\))"), "$1");
-    
-    // Remove code markers
-    text = std::regex_replace(text, std::regex("`([^`]+)`"), "$1");
-    
-    // Remove quote markers
-    text = std::regex_replace(text, std::regex(R"(^>\s*)"), "");
-    
-    return text;
+    // 行単位に処理して ^ アンカーを正しく機能させる
+    std::istringstream in(markdown);
+    std::ostringstream out;
+    std::string line;
+    bool first = true;
+
+    const std::regex header_re(R"(^\s*#{1,6}\s*)");
+    const std::regex bold_re(R"(\*\*([^*]+)\*\*)");
+    const std::regex italic_re(R"(\*([^*]+)\*)");
+    const std::regex link_re(R"(\[([^\]]+)\]\([^)]+\))");
+    const std::regex code_re(R"(`([^`]+)`)");
+    const std::regex quote_re(R"(^\s*>\s*)");
+
+    while (std::getline(in, line)) {
+        line = std::regex_replace(line, header_re, "");
+        line = std::regex_replace(line, bold_re, "$1");
+        line = std::regex_replace(line, italic_re, "$1");
+        line = std::regex_replace(line, link_re, "$1");
+        line = std::regex_replace(line, code_re, "$1");
+        line = std::regex_replace(line, quote_re, "");
+        if (!first) out << '\n';
+        out << line;
+        first = false;
+    }
+
+    return out.str();
 }
 
 bool MarkdownRenderer::IsAvailable() {

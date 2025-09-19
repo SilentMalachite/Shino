@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.16)
 project(ShinoEditor VERSION 1.2.2 LANGUAGES CXX)
 
+# Set C++ standard
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 # Set build type if not specified (default to Release for performance)
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
@@ -49,6 +53,9 @@ if(SHINO_BUILD_APP)
     src/pandoc_io.cpp
     src/tui_bindings.cpp
   )
+
+  # Set C++ standard for target
+  target_compile_features(ShinoEditor PRIVATE cxx_std_20)
 
   # Link libraries
   target_link_libraries(ShinoEditor

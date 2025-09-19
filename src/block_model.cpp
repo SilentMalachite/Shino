@@ -185,7 +185,7 @@ bool BlockModel::IsHeaderLine(const std::string& line, int& level) const {
     std::smatch matches;
     
     if (std::regex_match(line, matches, header_regex)) {
-        level = matches[1].str().length();
+        level = static_cast<int>(matches[1].str().length());
         return true;
     }
     

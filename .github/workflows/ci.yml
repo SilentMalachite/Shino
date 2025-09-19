@@ -21,15 +21,41 @@ jobs:
       - name: Set up CMake
         uses: lukka/get-cmake@v3.30.2
 
+      - name: Install dependencies (Ubuntu)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential
+
       - name: Configure
         run: |
-          cmake -S . -B build -DSHINO_BUILD_TESTS=ON -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+          cmake -S . -B build -DSHINO_BUILD_TESTS=ON -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_CXX_STANDARD=20
 
       - name: Build
         run: cmake --build build --config ${{ matrix.build_type }} -j 2
 
       - name: Test
         run: ctest --test-dir build --output-on-failure -C ${{ matrix.build_type }}
+
+      - name: Verify binary exists
+        run: |
+          set -e
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            BIN=$(ls build/**/ShinoEditor*.exe | head -n1)
+          else
+            BIN=$(ls build/ShinoEditor || true)
+            if [[ -z "$BIN" ]]; then BIN=$(ls build/**/ShinoEditor | head -n1); fi
+          fi
+          if [[ -z "$BIN" ]]; then
+            echo "Error: Built binary not found"
+            exit 1
+          fi
+
+
+      - name: Install 7z on Windows (if needed)
+        if: runner.os == 'Windows'
+        run: |
+          choco install -y 7zip || echo "7z not installed, will use PowerShell fallback"
 
       - name: Upload binary artifact
         if: always()

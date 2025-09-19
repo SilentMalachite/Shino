@@ -24,7 +24,7 @@ void Utf8PopBack(std::string& s) {
     // 1バイト戻しつつ、先頭バイトに当たるまで戻る
     do {
         --i;
-        unsigned char c = static_cast<unsigned char>(s[i]);
+        auto c = static_cast<unsigned char>(s[i]);
         if ((c & 0xC0) != 0x80) { // 先頭バイト（10xxxxxx 以外）
             s.erase(i);
             return;
@@ -41,7 +41,7 @@ App::App() : screen_(ScreenInteractive::Fullscreen()) {
     main_component_ = CreateMainComponent();
 }
 
-App::~App() {}
+App::~App() = default;
 
 int App::Run(const std::string& filename) {
     if (!filename.empty()) {
@@ -244,7 +244,7 @@ Component App::CreateMainComponent() {
         filename_prompt_component
     }, &filename_tab_index);
     
-    return CatchEvent(with_filename_prompt, [this](Event event) {
+    return CatchEvent(with_filename_prompt, [this](const Event& event) {
         return HandleKeyPress(event);
     });
 }
@@ -271,7 +271,7 @@ Component App::CreateEditorComponent() {
         
         // Add some padding if no lines
         if (elements.empty()) {
-            elements.push_back(text("[Empty file - press any key to start editing]"));
+            elements.push_back(text(L"[Empty file - press any key to start editing]"));
         }
         
         return vbox(elements) | border | flex;
@@ -281,14 +281,14 @@ Component App::CreateEditorComponent() {
 Component App::CreatePreviewComponent() {
     return Renderer([this] {
         if (!show_preview_) {
-            return text("");
+            return text(L"");
         }
         
         std::string content = GetPreviewContent();
         Elements elems;
         elems.push_back(text(L"Preview") | bold);
         elems.push_back(separator());
-        elems.push_back(paragraph(content));
+        elems.push_back(text(to_wstring(content)));
         return vbox(elems) | border | flex;
     });
 }
@@ -298,7 +298,7 @@ Component App::CreateHelpComponent() {
         auto bindings = TUIBindings::GetAllBindings();
         
         Elements help_elements;
-        help_elements.push_back(text(L"ShinoEditor Help") | bold | center);
+        help_elements.push_back(text(L"ShinoEditor Help") | bold | ftxui::center);
         help_elements.push_back(separator());
         
         for (const auto& binding : bindings) {
@@ -312,9 +312,9 @@ Component App::CreateHelpComponent() {
         }
         
         help_elements.push_back(separator());
-        help_elements.push_back(text("Press Ctrl+G to close help") | center);
-        
-        return vbox(help_elements) | border | center;
+        help_elements.push_back(text(L"Press Ctrl+G to close help") | ftxui::center);
+
+        return vbox(help_elements) | border | ftxui::center;
     });
 }
 
@@ -333,7 +333,7 @@ Component App::CreateStatusComponent() {
     });
 }
 
-bool App::HandleKeyPress(Event event) {
+bool App::HandleKeyPress(const Event& event) {
     // Handle filename prompt dialog first if active
     if (show_filename_prompt_) {
         if (event == Event::Return) {
@@ -605,7 +605,7 @@ void App::ConfirmFilenamePrompt() {
 
 Component App::CreateFilenamePromptComponent() {
     if (!show_filename_prompt_) {
-        return Renderer([] { return text(""); });
+        return Renderer([] { return text(L""); });
     }
     
     return Renderer([this] {
@@ -620,9 +620,9 @@ Component App::CreateFilenamePromptComponent() {
         elements.push_back(text(to_wstring(display_text)) | border);
         
         elements.push_back(separator());
-        elements.push_back(text(L"Press Enter to confirm, Esc to cancel") | center);
-        
-        return vbox(elements) | border | center;
+        elements.push_back(text(L"Press Enter to confirm, Esc to cancel") | ftxui::center);
+
+        return vbox(elements) | border | ftxui::center;
     });
 }
 

@@ -1,5 +1,6 @@
 #include "pandoc_io.h"
 #include <cstdlib>
+#include <cstdio>
 #include <fstream>
 #include <sstream>
 #include <iostream>

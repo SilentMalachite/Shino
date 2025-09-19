@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <functional>
 
 namespace ShinoEditor {
 
@@ -82,7 +83,7 @@ private:
     void ConfirmFilenamePrompt();
     
     // Event handlers
-    bool HandleKeyPress(ftxui::Event event);
+    bool HandleKeyPress(const ftxui::Event& event);
     
     // Helper methods
     void UpdateBlockModel();
