@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(ShinoEditor VERSION 1.2.1 LANGUAGES CXX)
+project(ShinoEditor VERSION 1.2.2 LANGUAGES CXX)
 
 # Set build type if not specified (default to Release for performance)
 if(NOT CMAKE_BUILD_TYPE)

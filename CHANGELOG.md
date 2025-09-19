@@ -8,6 +8,10 @@
 - CI: Windows での `PkgConfig` 非存在により Configure が失敗する問題を修正。
 - `CMakeLists.txt` で `PkgConfig` を任意検出に変更し、`md4c` 検出を `PkgConfig_FOUND` でガード。
 
+## [1.2.2] - 2025-09-19
+### 修正
+- リリースワークフローで GitHub Release 作成に失敗していたため、`permissions: contents: write` を付与。
+
 ### 追加
 - PromptForFilename関数を実装（ファイル名入力ダイアログ）。
 - ファイル名入力ダイアログのUIコンポーネントを追加（FTXUI使用）。
