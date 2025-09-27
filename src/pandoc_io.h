@@ -22,6 +22,9 @@ private:
     // Execute pandoc command
     static std::string ExecutePandocCommand(const std::string& command);
 
+    // Generate a secure temporary file name
+    static std::string GenerateTempFileName();
+
     // Shell安全のための簡易エスケープ（主にPOSIX想定）
     static std::string ShellEscape(const std::string& arg);
 };

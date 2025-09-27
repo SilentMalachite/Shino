@@ -5,8 +5,29 @@
 #include <sstream>
 #include <iostream>
 #include <memory>
+#include <random>
+#include <chrono>
 
 namespace ShinoEditor {
+
+// Generate a secure temporary file name
+std::string PandocIO::GenerateTempFileName() {
+    auto now = std::chrono::steady_clock::now().time_since_epoch();
+    auto seed = std::chrono::duration_cast<std::chrono::nanoseconds>(now).count();
+    std::mt19937 gen(static_cast<std::mt19937::result_type>(seed));
+    std::uniform_int_distribution<> dis(10000000, 99999999);
+    
+#ifdef _WIN32
+    const char* temp_dir = std::getenv("TEMP");
+    if (!temp_dir) temp_dir = std::getenv("TMP");
+    if (!temp_dir) temp_dir = "C:\\Windows\\Temp";
+    return std::string(temp_dir) + "\\sino_temp_" + std::to_string(dis(gen)) + ".md";
+#else
+    const char* temp_dir = std::getenv("TMPDIR");
+    if (!temp_dir) temp_dir = "/tmp";
+    return std::string(temp_dir) + "/sino_temp_" + std::to_string(dis(gen)) + ".md";
+#endif
+}
 
 bool PandocIO::IsPandocAvailable() {
     int result = std::system("pandoc --version > /dev/null 2>&1");
@@ -34,7 +55,7 @@ bool PandocIO::ExportDocx(const std::string& markdown_content, const std::string
     }
     
     // Write markdown to temporary file
-    std::string temp_file = "/tmp/sino_temp.md";
+    std::string temp_file = GenerateTempFileName();
     std::ofstream temp_out(temp_file);
     if (!temp_out) {
         return false;
@@ -90,8 +111,8 @@ std::string PandocIO::ShellEscape(const std::string& arg) {
     out.reserve(arg.size() + 2);
     out.push_back('"');
     for (char c : arg) {
-        if (c == '"') out += '"';
-        out += c;
+        if (c == '"') out += "\\\"";  // Properly escape quotes
+        else out += c;
     }
     out.push_back('"');
     return out;
@@ -99,15 +120,15 @@ std::string PandocIO::ShellEscape(const std::string& arg) {
     // POSIX: シングルクォートで囲み、内部の ' は '\'' に分割して表現
     std::string out;
     out.reserve(arg.size() + 2);
-    out.push_back(static_cast<char>(39));
+    out.push_back('\'');
     for (char c : arg) {
-        if (c == static_cast<char>(39)) {
+        if (c == '\'') {
             out += "'\\''"; // 終了→エスケープ→再開始
         } else {
             out.push_back(c);
         }
     }
-    out.push_back(static_cast<char>(39));
+    out.push_back('\'');
     return out;
 #endif
 }
