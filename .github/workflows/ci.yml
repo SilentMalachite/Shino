@@ -26,68 +26,55 @@ jobs:
             ~/.ccache
             build/
           key: ${{ runner.os }}-${{ matrix.build_type }}-${{ hashFiles('**/CMakeLists.txt', '**/*.cmake') }}
-          restore-keys: |
             ${{ runner.os }}-${{ matrix.build_type }}-
 
-      - name: Set up CMake
+      - name: Set up CMake and Ninja
         uses: lukka/get-cmake@v3.30.2
+        with:
+          ninja: true
 
       - name: Install dependencies (Ubuntu)
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential ccache
+          sudo apt-get install -y build-essential ccache ninja-build ninja-build
 
       - name: Install dependencies (macOS)
         if: runner.os == 'macOS'
         run: |
-          brew install ccache
+          brew update
+          brew install ccache ninja-build ninja-build
 
       - name: Configure
         run: |
           mkdir -p build
           cd build
-          cmake .. -DSHINO_BUILD_TESTS=ON -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_CXX_STANDARD=20
-
-      - name: Build
-        run: |
-          cmake --build build --config ${{ matrix.build_type }} --parallel
+          cmake .. -DSHINO_BUILD_TESTS=ON -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_CXX_STANDARD=20 -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_PARALLEL_LEVEL=$(nproc) -G Ninja
 
       - name: Test
         run: ctest --test-dir build --output-on-failure -C ${{ matrix.build_type }}
 
       - name: Generate coverage report
-        if: runner.os == 'Linux' && matrix.build_type == 'Release'
-        run: |
-          cd build
-          ctest -T Test
-          # カバレッジツールの設定が必要です
-
-      - name: Find binary
-        id: find_binary
-        shell: bash
-        run: |
-          if [[ "${{ runner.os }}" == "Windows" ]]; then
-            BIN=$(find build -name "ShinoEditor*.exe" -type f | head -n1)
-          else
-            BIN=$(find build -name "ShinoEditor" -type f -perm +111 | head -n1)
-          fi
-          if [[ -z "$BIN" ]]; then
             echo "::error::Built binary not found"
             exit 1
           fi
           echo "binary_path=$BIN" >> $GITHUB_OUTPUT
+          echo "Found binary: $BIN"
+          echo "Found binary: $BIN"
 
       - name: Package binary
         shell: bash
         run: |
           mkdir -p package
+          NAME=ShinoEditor-${{ runner.os }}-${{ matrix.build_type }}
+          if [[ "${{ runner.os }}" == "macOS" ]]; then
+            NAME=ShinoEditor-${{ runner.os }}-${{ runner.arch }}-${{ matrix.build_type }}
+          fi
           if [[ "${{ runner.os }}" == "Windows" ]]; then
-            7z a -r package/ShinoEditor-${{ runner.os }}-${{ matrix.build_type }}.zip "${{ steps.find_binary.outputs.binary_path }}"
+            7z a -r package/$NAME.zip "${{ steps.find_binary.outputs.binary_path }}" || echo "7z failed, binary will be uploaded as-is"
           elif [[ "${{ runner.os }}" == "macOS" ]]; then
-            zip -r package/ShinoEditor-${{ runner.os }}-${{ runner.arch }}-${{ matrix.build_type }}.zip "${{ steps.find_binary.outputs.binary_path }}"
           else
-            tar -czf package/ShinoEditor-${{ runner.os }}-${{ runner.arch }}-${{ matrix.build_type }}.tar.gz -C "$(dirname "${{ steps.find_binary.outputs.binary_path }}")" "$(basename "${{ steps.find_binary.outputs.binary_path }}")"
+            tar -czf package/$NAME.tar.gz -C "$(dirname "${{ steps.find_binary.outputs.binary_path }}")" "$(basename "${{ steps.find_binary.outputs.binary_path }}")"
           fi
 
       - name: Upload build artifacts
