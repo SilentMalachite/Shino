@@ -35,15 +35,21 @@ Terminal-based Markdown editor written in C++20 with FTXUI. Designed for novel a
 - Block detection and folding (headers, code fences, quotes)
 - Block movement with Page Up/Down
 - Basic text editing (insert/delete lines, edit mode)
-- File loading and saving
-- DOCX import/export via pandoc
+- File loading and saving with security validation
+- DOCX import/export via pandoc with proper error handling
 - HTML preview display
 - Help system with Ctrl+G
+- Search functionality (Ctrl+W) with n/p navigation
 - TUI interface with FTXUI
+- Comprehensive error handling and security checks
 
 🔄 **Future Enhancements:**
-- Search functionality (Ctrl+W)
 - Better Alt+Arrow key detection
-- Interactive file dialogs for DOCX operations
 - More advanced text editing (character-level)
 - Undo/redo functionality
+
+## Build & Testing
+- Requires C++20, CMake 3.16+
+- macOS requires deployment target 10.15+ for std::filesystem
+- Tests use friend declarations for access to private methods
+- Performance tests included for BlockModel, MarkdownRenderer, PandocIO

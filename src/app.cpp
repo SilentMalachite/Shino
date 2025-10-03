@@ -1,5 +1,6 @@
 #include "app.h"
 #include "tui_bindings.h"
+#include "security.h"
 #include <ftxui/component/component.hpp>
 #include <ftxui/component/screen_interactive.hpp>
 #include <ftxui/dom/elements.hpp>
@@ -56,47 +57,74 @@ int App::Run(const std::string& filename) {
 }
 
 bool App::LoadFile(const std::string& filename) {
-    std::ifstream file(filename);
-    if (!file) {
-        return false;
-    }
-    
-    lines_.clear();
+    try {
+        // Validate file read operation
+        security::PathValidator::ValidateFileOperation(filename, false);
+
+        std::ifstream file(filename);
+        if (!file) {
+            return false;
+        }
+        
+        lines_.clear();
     std::string line;
     while (std::getline(file, line)) {
         lines_.push_back(line);
     }
     
-    filename_ = filename;
-    modified_ = false;
-    UpdateBlockModel();
-    return true;
+        filename_ = filename;
+        modified_ = false;
+        UpdateBlockModel();
+        return true;
+    } catch (const security::SecurityError& e) {
+        SetStatusMessage(std::string("Security error: ") + e.what());
+        return false;
+    } catch (const std::exception& e) {
+        SetStatusMessage(std::string("Error loading file: ") + e.what());
+        return false;
+    }
 }
 
 bool App::SaveFile() {
     if (filename_.empty()) {
-        SetStatusMessage("No filename specified");
+        ShowFilenamePrompt("Enter filename to save: ", "document.md", [this](const std::string& path) {
+            if (path.empty()) {
+                SetStatusMessage("Save cancelled");
+                return;
+            }
+            SaveFileAs(path);
+        });
         return false;
     }
-    
     return SaveFileAs(filename_);
 }
 
 bool App::SaveFileAs(const std::string& filename) {
-    std::ofstream file(filename);
-    if (!file) {
-        SetStatusMessage("Failed to save file: " + filename);
-        return false;
-    }
+    try {
+        // Validate file write operation
+        security::PathValidator::ValidateFileOperation(filename, true);
+
+        std::ofstream file(filename);
+        if (!file) {
+            SetStatusMessage("Failed to save file: " + filename);
+            return false;
+        }
     
     for (const auto& line : lines_) {
         file << line << '\n';
     }
     
-    filename_ = filename;
-    modified_ = false;
-    SetStatusMessage("Saved: " + filename);
-    return true;
+        filename_ = filename;
+        modified_ = false;
+        SetStatusMessage("Saved: " + filename);
+        return true;
+    } catch (const security::SecurityError& e) {
+        SetStatusMessage(std::string("Security error: ") + e.what());
+        return false;
+    } catch (const std::exception& e) {
+        SetStatusMessage(std::string("Error saving file: ") + e.what());
+        return false;
+    }
 }
 
 void App::ToggleBlockFold() {
@@ -154,7 +182,72 @@ void App::ToggleHelp() {
 }
 
 void App::ShowSearch() {
-    SetStatusMessage("Search not implemented yet");
+    show_search_ = true;
+    search_query_.clear();
+    search_matches_.clear();
+    current_match_ = -1;
+    SetStatusMessage("Enter search text (Enter to search, Esc to cancel)");
+}
+
+void App::FindMatches(const std::string& query) {
+    search_matches_.clear();
+    current_match_ = -1;
+
+    // Empty query clears search
+    if (query.empty()) {
+        SetStatusMessage("Search cancelled");
+        return;
+    }
+
+    // Find all matches
+    for (int i = 0; i < static_cast<int>(lines_.size()); i++) {
+        if (lines_[i].find(query) != std::string::npos) {
+            search_matches_.push_back(i);
+        }
+    }
+
+    if (search_matches_.empty()) {
+        SetStatusMessage("No matches found");
+    } else {
+        current_match_ = 0;
+        // Move to first match
+        int visible_idx = RealToVisibleIndex(search_matches_[current_match_]);
+        if (visible_idx >= 0) {
+            current_line_ = visible_idx;
+        }
+        SetStatusMessage("Found " + std::to_string(search_matches_.size()) + " matches (n: next, p: prev)");
+    }
+}
+
+void App::GotoNextMatch() {
+    if (search_matches_.empty() || current_match_ < 0) {
+        return;
+    }
+    current_match_ = (current_match_ + 1) % search_matches_.size();
+    int visible_idx = RealToVisibleIndex(search_matches_[current_match_]);
+    if (visible_idx >= 0) {
+        current_line_ = visible_idx;
+    }
+    SetStatusMessage("Match " + std::to_string(current_match_ + 1) + "/" + 
+                    std::to_string(search_matches_.size()) + " (n: next, p: prev)");
+}
+
+void App::GotoPrevMatch() {
+    if (search_matches_.empty() || current_match_ < 0) {
+        return;
+    }
+    current_match_ = (current_match_ - 1 + search_matches_.size()) % search_matches_.size();
+    int visible_idx = RealToVisibleIndex(search_matches_[current_match_]);
+    if (visible_idx >= 0) {
+        current_line_ = visible_idx;
+    }
+    SetStatusMessage("Match " + std::to_string(current_match_ + 1) + "/" + 
+                    std::to_string(search_matches_.size()) + " (n: next, p: prev)");
+}
+
+void App::HideSearch() {
+    show_search_ = false;
+    SetStatusMessage("");
 }
 
 void App::ImportDocx() {
@@ -162,29 +255,34 @@ void App::ImportDocx() {
         SetStatusMessage("Pandoc not available");
         return;
     }
-    
-    std::string docx_path = PromptForFilename("Enter DOCX filename to import: ");
-    if (docx_path.empty()) {
-        SetStatusMessage("Import cancelled");
-        return;
-    }
-    
-    auto result = PandocIO::ImportDocx(docx_path);
-    if (result) {
-        // Parse the imported markdown into lines
-        lines_.clear();
-        std::istringstream ss(*result);
-        std::string line;
-        while (std::getline(ss, line)) {
-            lines_.push_back(line);
+    ShowFilenamePrompt("Enter DOCX filename to import: ", "", [this](const std::string& docx_path) {
+        if (docx_path.empty()) {
+            SetStatusMessage("Import cancelled");
+            return;
         }
-        UpdateBlockModel();
-        modified_ = true;
-        current_line_ = 0;
-        SetStatusMessage("DOCX imported successfully");
-    } else {
-        SetStatusMessage("Failed to import DOCX file");
-    }
+        try {
+            auto result = PandocIO::ImportDocx(docx_path);
+            if (result) {
+                // Parse the imported markdown into lines
+                lines_.clear();
+                std::istringstream ss(*result);
+                std::string line;
+                while (std::getline(ss, line)) {
+                    lines_.push_back(line);
+                }
+                UpdateBlockModel();
+                modified_ = true;
+                current_line_ = 0;
+                SetStatusMessage("DOCX imported successfully");
+            } else {
+                SetStatusMessage("Failed to import DOCX file");
+            }
+        } catch (const ShinoError& e) {
+            SetStatusMessage(std::string("Import error: ") + e.what());
+        } catch (const std::exception& e) {
+            SetStatusMessage(std::string("Import failed: ") + e.what());
+        }
+    });
 }
 
 void App::ExportDocx() {
@@ -192,24 +290,28 @@ void App::ExportDocx() {
         SetStatusMessage("Pandoc not available");
         return;
     }
-    
-    std::string docx_path = PromptForFilename("Enter DOCX filename to export: ");
-    if (docx_path.empty()) {
-        SetStatusMessage("Export cancelled");
-        return;
-    }
-    
-    // Convert lines to markdown string
-    std::ostringstream ss;
-    for (const auto& line : lines_) {
-        ss << line << "\n";
-    }
-    
-    if (PandocIO::ExportDocx(ss.str(), docx_path)) {
-        SetStatusMessage("DOCX exported successfully");
-    } else {
-        SetStatusMessage("Failed to export DOCX file");
-    }
+    ShowFilenamePrompt("Enter DOCX filename to export: ", "", [this](const std::string& docx_path) {
+        if (docx_path.empty()) {
+            SetStatusMessage("Export cancelled");
+            return;
+        }
+        try {
+            // Convert lines to markdown string
+            std::ostringstream ss;
+            for (const auto& line : lines_) {
+                ss << line << "\n";
+            }
+            if (PandocIO::ExportDocx(ss.str(), docx_path)) {
+                SetStatusMessage("DOCX exported successfully");
+            } else {
+                SetStatusMessage("Failed to export DOCX file");
+            }
+        } catch (const ShinoError& e) {
+            SetStatusMessage(std::string("Export error: ") + e.what());
+        } catch (const std::exception& e) {
+            SetStatusMessage(std::string("Export failed: ") + e.what());
+        }
+    });
 }
 
 Component App::CreateMainComponent() {
@@ -228,6 +330,8 @@ Component App::CreateMainComponent() {
         content,
         status_component
     });
+
+    auto search_component = CreateSearchPromptComponent();
     
     // Add overlays for help and filename prompt
     help_tab_index_ = show_help_ ? 1 : 0;
@@ -243,8 +347,15 @@ Component App::CreateMainComponent() {
         with_help,
         filename_prompt_component
     }, &filename_tab_index);
+
+    // Add search prompt overlay
+    int search_tab_index = show_search_ ? 1 : 0;
+    auto with_search = Container::Tab({
+        with_filename_prompt,
+        search_component
+    }, &search_tab_index);
     
-    return CatchEvent(with_filename_prompt, [this](const Event& event) {
+    return CatchEvent(with_search, [this](const Event& event) {
         return HandleKeyPress(event);
     });
 }
@@ -353,6 +464,34 @@ bool App::HandleKeyPress(const Event& event) {
             return true;
         }
         return true; // Consume all events when dialog is active
+    }
+
+    // Handle search prompt if active
+    if (show_search_) {
+        if (event == Event::Return) {
+            FindMatches(search_query_);
+            HideSearch();
+            return true;
+        }
+        if (event == Event::Escape) {
+            HideSearch();
+            return true;
+        }
+        if (event.is_character()) {
+            if (event.character() == "n") {
+                GotoNextMatch();
+            } else if (event.character() == "p") {
+                GotoPrevMatch();
+            } else {
+                search_query_ += event.character();
+            }
+            return true;
+        }
+        if (event == Event::Backspace && !search_query_.empty()) {
+            Utf8PopBack(search_query_);
+            return true;
+        }
+        return true; // Consume all events when search is active
     }
     
     // Handle special key combinations (Ctrl keys using character codes)
@@ -530,15 +669,10 @@ void App::ExitEditMode() {
 }
 
 std::string App::PromptForFilename(const std::string& prompt) {
-    // Show the filename prompt dialog
-    std::string result;
-    ShowFilenamePrompt(prompt, "", [&](const std::string& filename) {
-        result = filename;
-    });
-    
-    // Note: In a complete implementation, this would be asynchronous
-    // For now, we return a placeholder and the dialog handles the actual input
-    return result.empty() ? "example.docx" : result;
+    // Show prompt and let callback handle the result asynchronously.
+    ShowFilenamePrompt(prompt, "", [&](const std::string&){ });
+    // Return empty because this function does not block; callers should use ShowFilenamePrompt with a callback.
+    return "";
 }
 
 std::vector<std::string> App::GetVisibleEditorLines() const {
@@ -601,6 +735,33 @@ void App::ConfirmFilenamePrompt() {
         filename_prompt_callback_(filename_prompt_text_);
     }
     HideFilenamePrompt();
+}
+
+Component App::CreateSearchPromptComponent() {
+    return Renderer([this] {
+        if (!show_search_) {
+            return text(L"");
+        }
+
+        Elements elements;
+        elements.push_back(text(L"検索") | bold | center);
+        elements.push_back(separator());
+
+        // Show search input with cursor
+        std::string display_text = search_query_ + "_";
+        if (search_query_.empty()) {
+            display_text = "[検索文字列を入力]"; 
+        }
+        elements.push_back(text(to_wstring(display_text)) | border);
+
+        elements.push_back(separator());
+        elements.push_back(text(L"Enter: 検索実行  Esc: キャンセル") | center);
+        if (!search_matches_.empty()) {
+            elements.push_back(text(L"n: 次の一致  p: 前の一致") | center);
+        }
+
+        return vbox(elements) | border | center;
+    });
 }
 
 Component App::CreateFilenamePromptComponent() {

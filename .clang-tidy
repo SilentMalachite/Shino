@@ -1,0 +1,38 @@
+---
+Checks: >
+  -*,
+  clang-analyzer-*,
+  clang-diagnostic-*,
+  performance-*,
+  bugprone-*,
+  modernize-*,
+  cppcoreguidelines-*,
+  readability-*,
+  -modernize-use-trailing-return-type,
+  -readability-identifier-length,
+  -readability-magic-numbers,
+  -cppcoreguidelines-avoid-magic-numbers
+
+# Turn all the warnings from the checks above into errors.
+WarningsAsErrors: "*"
+
+HeaderFilterRegex: "src/.*\\.h$"
+
+CheckOptions:
+  - { key: readability-identifier-naming.ClassCase,           value: CamelCase }
+  - { key: readability-identifier-naming.StructCase,          value: CamelCase }
+  - { key: readability-identifier-naming.EnumCase,            value: CamelCase }
+  - { key: readability-identifier-naming.FunctionCase,        value: CamelCase }
+  - { key: readability-identifier-naming.VariableCase,        value: lower_case }
+  - { key: readability-identifier-naming.GlobalConstantCase,  value: UPPER_CASE }
+  - { key: readability-identifier-naming.PrivateMemberSuffix, value: _ }
+  
+  # Allow variable names like i, j, k for loops
+  - { key: readability-identifier-length.MinimumVariableNameLength, value: 1 }
+  - { key: readability-identifier-length.MinimumParameterNameLength, value: 1 }
+  
+  # Maximum line length
+  - { key: readability-line-length.LineLength, value: 100 }
+  
+  # Function cognitive complexity limit
+  - { key: readability-function-cognitive-complexity.Threshold, value: 25 }

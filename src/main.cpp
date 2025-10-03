@@ -1,4 +1,5 @@
 #include "app.h"
+#include "error_handler.h"
 #include <iostream>
 #include <string>
 
@@ -12,11 +13,30 @@ int main(int argc, char* argv[]) {
         }
         
         return app.Run(filename);
+    } catch (const ShinoError& e) {
+        // Format error based on category
+        std::cerr << e.what() << std::endl;
+        
+        // Provide helpful recovery hints based on error category
+        switch (e.category()) {
+            case ShinoError::Category::File:
+                std::cerr << "Hint: Check file permissions and path" << std::endl;
+                break;
+            case ShinoError::Category::Convert:
+                std::cerr << "Hint: Ensure pandoc is installed and input format is correct" << std::endl;
+                break;
+            case ShinoError::Category::System:
+                std::cerr << "Hint: Check system resources and permissions" << std::endl;
+                break;
+            default:
+                break;
+        }
+        return 1;
     } catch (const std::exception& e) {
-        std::cerr << "Error: " << e.what() << std::endl;
+        std::cerr << "Unexpected error: " << e.what() << std::endl;
         return 1;
     } catch (...) {
-        std::cerr << "Unknown error occurred" << std::endl;
+        std::cerr << "Critical error: Unknown exception occurred" << std::endl;
         return 1;
     }
 }

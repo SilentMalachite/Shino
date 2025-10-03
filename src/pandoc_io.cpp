@@ -1,4 +1,5 @@
 #include "pandoc_io.h"
+#include "security.h"
 #include <cstdlib>
 #include <cstdio>
 #include <fstream>
@@ -7,6 +8,9 @@
 #include <memory>
 #include <random>
 #include <chrono>
+#include <filesystem>
+
+namespace fs = std::filesystem;
 
 namespace ShinoEditor {
 
@@ -30,57 +34,122 @@ std::string PandocIO::GenerateTempFileName() {
 }
 
 bool PandocIO::IsPandocAvailable() {
-    int result = std::system("pandoc --version > /dev/null 2>&1");
-    return result == 0;
+    try {
+        std::string cmd = security::CommandValidator::BuildSafeCommand(
+            "pandoc", {"--version"});
+        cmd += " > /dev/null 2>&1";
+        int result = std::system(cmd.c_str());
+        return result == 0;
+    } catch (...) {
+        return false;
+    }
 }
 
 std::optional<std::string> PandocIO::ImportDocx(const std::string& docx_path) {
+    // Verify pandoc availability
     if (!IsPandocAvailable()) {
-        return std::nullopt;
+        error::ThrowSystemError("DOCX import", "pandoc is not available");
     }
     
-    std::string command = "pandoc -f docx -t markdown " + ShellEscape(docx_path);
+    // Validate file security and permissions
+    security::PathValidator::ValidateFileOperation(docx_path, false);
+    
+    // Build and validate command
+    std::vector<std::string> args = {
+        "-f", "docx",
+        "-t", "markdown",
+        docx_path
+    };
+    // Verify file has .docx extension
+    if (fs::path(docx_path).extension() != ".docx") {
+        error::ThrowConversionFailed("document", "markdown", 
+            "Input file must have .docx extension");
+    }
+    
+    // Build and execute pandoc command
+    std::string command = security::CommandValidator::BuildSafeCommand("pandoc", args);
     std::string result = ExecutePandocCommand(command);
     
     if (result.empty()) {
-        return std::nullopt;
+        error::ThrowConversionFailed("DOCX", "markdown", 
+            "Failed to convert file: " + docx_path);
     }
     
     return result;
 }
 
 bool PandocIO::ExportDocx(const std::string& markdown_content, const std::string& docx_path) {
+    // Verify pandoc availability
     if (!IsPandocAvailable()) {
-        return false;
+        error::ThrowSystemError("DOCX export", "pandoc is not available");
     }
     
-    // Write markdown to temporary file
+    // Validate output file security and permissions
+    security::PathValidator::ValidateFileOperation(docx_path, true);
+    
+    // Verify output file has .docx extension
+    if (fs::path(docx_path).extension() != ".docx") {
+        error::ThrowConversionFailed("markdown", "DOCX", 
+            "Output file must have .docx extension");
+    }
+    
+    // Create and validate temporary file
     std::string temp_file = GenerateTempFileName();
+    security::PathValidator::ValidateFileOperation(temp_file, true);
+    
+    // Write content to temp file
     std::ofstream temp_out(temp_file);
     if (!temp_out) {
-        return false;
+        error::ThrowSystemError("DOCX export", 
+            "Failed to create temporary file: " + temp_file);
     }
     temp_out << markdown_content;
     temp_out.close();
     
-    // Convert to DOCX
-    std::string command = "pandoc -f markdown -t docx " + ShellEscape(temp_file) + " -o " + ShellEscape(docx_path);
+    // Ensure temp file was written
+    if (!fs::exists(temp_file)) {
+        error::ThrowSystemError("DOCX export", 
+            "Failed to write temporary file: " + temp_file);
+    }
+    
+    // Build and validate command
+    std::vector<std::string> args = {
+        "-f", "markdown",
+        "-t", "docx",
+        temp_file,
+        "-o", docx_path
+    };
+    std::string command = security::CommandValidator::BuildSafeCommand("pandoc", args);
     std::string result = ExecutePandocCommand(command);
     
     // Clean up temp file
-    std::remove(temp_file.c_str());
+    try {
+        fs::remove(temp_file);
+    } catch (...) {
+        // Log but don't throw - temp file cleanup failure isn't critical
+        std::cerr << "Warning: Failed to remove temporary file: " << temp_file << std::endl;
+    }
     
-    // Check if output file was created
-    std::ifstream check(docx_path);
-    return check.good();
+    // Check if output file was created and is readable
+    if (!fs::exists(docx_path)) {
+        error::ThrowConversionFailed("markdown", "DOCX", 
+            "Failed to create output file: " + docx_path);
+    }
+    
+    return true;
 }
 
 std::string PandocIO::GetPandocVersion() {
     if (!IsPandocAvailable()) {
-        return "Pandoc not available";
+        error::ThrowSystemError("version check", "pandoc is not available");
     }
     
-    return ExecutePandocCommand("pandoc --version | head -1");
+    std::string version = ExecutePandocCommand("pandoc --version | head -1");
+    if (version.empty()) {
+        error::ThrowSystemError("version check", "failed to get pandoc version");
+    }
+    
+    return version;
 }
 
 std::string PandocIO::ExecutePandocCommand(const std::string& command) {
@@ -105,32 +174,8 @@ std::string PandocIO::ExecutePandocCommand(const std::string& command) {
 }
 
 std::string PandocIO::ShellEscape(const std::string& arg) {
-#ifdef _WIN32
-    // 簡易対応: ダブルクォートをエスケープしつつ全体をダブルクォートで囲む
-    std::string out;
-    out.reserve(arg.size() + 2);
-    out.push_back('"');
-    for (char c : arg) {
-        if (c == '"') out += "\\\"";  // Properly escape quotes
-        else out += c;
-    }
-    out.push_back('"');
-    return out;
-#else
-    // POSIX: シングルクォートで囲み、内部の ' は '\'' に分割して表現
-    std::string out;
-    out.reserve(arg.size() + 2);
-    out.push_back('\'');
-    for (char c : arg) {
-        if (c == '\'') {
-            out += "'\\''"; // 終了→エスケープ→再開始
-        } else {
-            out.push_back(c);
-        }
-    }
-    out.push_back('\'');
-    return out;
-#endif
+    // Use the security framework's shell escaping
+    return security::CommandValidator::SafeShellEscape(arg);
 }
 
 }

@@ -4,6 +4,10 @@
 
 namespace ShinoEditor {
 
+// 静的メンバの初期化
+const std::regex BlockModel::header_pattern_(R"(^(#{1,6})\s+(.*))" );
+const std::regex BlockModel::header_extract_pattern_(R"(^#{1,6}\s+(.*))" );
+
 BlockModel::BlockModel(std::vector<std::string>& lines)
     : lines_(lines) {
     ParseBlocks();
@@ -11,6 +15,10 @@ BlockModel::BlockModel(std::vector<std::string>& lines)
 
 void BlockModel::ParseBlocks() {
     blocks_.clear();
+    cache_valid_ = false;
+    
+    // 予約メモリを最適化
+    blocks_.reserve(lines_.size() / 5); // 平均5行/ブロックを想定
     
     if (lines_.empty()) return;
     
@@ -105,6 +113,7 @@ void BlockModel::ToggleFold(int line_number) {
     auto block = GetBlockAt(line_number);
     if (block && block->start_line != block->end_line) {
         block->is_folded = !block->is_folded;
+        cache_valid_ = false;
     }
 }
 
@@ -131,6 +140,7 @@ bool BlockModel::MoveBlockUp(int line_number) {
     std::rotate(begin, middle, end);
 
     ParseBlocks(); // 再解析
+    cache_valid_ = false;
     return true;
 }
 
@@ -157,6 +167,7 @@ bool BlockModel::MoveBlockDown(int line_number) {
     std::rotate(begin, middle, end);
 
     ParseBlocks(); // 再解析
+    cache_valid_ = false;
     return true;
 }
 
@@ -170,10 +181,11 @@ std::shared_ptr<Block> BlockModel::GetBlockAt(int line_number) const {
 }
 
 std::vector<std::string> BlockModel::GetVisibleLines() const {
-    std::vector<std::string> out_lines;
-    std::vector<int> out_indices;
-    BuildVisibleView(out_lines, out_indices);
-    return out_lines;
+    if (!cache_valid_) {
+        BuildVisibleView(visible_lines_cache_, visible_indices_cache_);
+        cache_valid_ = true;
+    }
+    return visible_lines_cache_;
 }
 
 void BlockModel::UpdateLines() {
@@ -181,14 +193,11 @@ void BlockModel::UpdateLines() {
 }
 
 bool BlockModel::IsHeaderLine(const std::string& line, int& level) const {
-    std::regex header_regex(R"(^(#{1,6})\s+(.*))");
     std::smatch matches;
-    
-    if (std::regex_match(line, matches, header_regex)) {
+    if (std::regex_match(line, matches, header_pattern_)) {
         level = static_cast<int>(matches[1].str().length());
         return true;
     }
-    
     return false;
 }
 
@@ -201,27 +210,29 @@ bool BlockModel::IsQuoteLine(const std::string& line) const {
 }
 
 std::string BlockModel::ExtractHeaderText(const std::string& line) const {
-    std::regex header_regex(R"(^#{1,6}\s+(.*))");
     std::smatch matches;
-    
-    if (std::regex_match(line, matches, header_regex)) {
+    if (std::regex_match(line, matches, header_extract_pattern_)) {
         return matches[1].str();
     }
-    
     return line;
 }
 
 std::vector<int> BlockModel::GetVisibleLineIndices() const {
-    std::vector<std::string> out_lines;
-    std::vector<int> out_indices;
-    BuildVisibleView(out_lines, out_indices);
-    return out_indices;
+    if (!cache_valid_) {
+        BuildVisibleView(visible_lines_cache_, visible_indices_cache_);
+        cache_valid_ = true;
+    }
+    return visible_indices_cache_;
 }
 
 void BlockModel::BuildVisibleView(std::vector<std::string>& out_lines,
                                   std::vector<int>& out_indices) const {
     out_lines.clear();
     out_indices.clear();
+    
+    // Pre-allocate based on lines size
+    out_lines.reserve(lines_.size());
+    out_indices.reserve(lines_.size());
 
     for (int i = 0; i < static_cast<int>(lines_.size()); ++i) {
         auto block = GetBlockAt(i);

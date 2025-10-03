@@ -1,18 +1,39 @@
 # Build artifacts
 build/
+build_*/
 dist/
+install/
 
 # OS files
 .DS_Store
+Thumbs.db
 
 # CMake
 CMakeFiles/
 CMakeCache.txt
 cmake_install.cmake
+CMakeSettings.json
+CTestTestfile.cmake
 Makefile
+*.cmake
+CPack*Config.cmake
+
+# Build outputs
+*.exe
+*.dll
+*.so
+*.dylib
+*.a
+*.lib
 
 # Editors/IDE
 .idea/
 .vscode/
 *.code-workspace
+*.swp
+*~
+
+# Test files
+test.md
+codebuff.json
 

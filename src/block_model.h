@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <regex>
 
 namespace ShinoEditor {
 
@@ -55,6 +56,15 @@ private:
     // App::lines_ を参照で保持して、二重管理・余計なメモリ消費を防ぐ
     std::vector<std::string>& lines_;
     std::vector<std::shared_ptr<Block>> blocks_;
+    
+    // キャッシュとバッファ
+    mutable std::vector<std::string> visible_lines_cache_;
+    mutable std::vector<int> visible_indices_cache_;
+    mutable bool cache_valid_ = false;
+    
+    // 正規表現パターンのキャッシュ
+    static const std::regex header_pattern_;
+    static const std::regex header_extract_pattern_;
 
     // Helper methods
     bool IsHeaderLine(const std::string& line, int& level) const;

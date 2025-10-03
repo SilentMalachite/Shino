@@ -11,7 +11,11 @@
 
 namespace ShinoEditor {
 
+// Forward declare for friend access
+namespace test { class AppTestHelper; }
+
 class App {
+    friend class test::AppTestHelper;
 public:
     App();
     ~App();
@@ -41,6 +45,13 @@ private:
     int help_tab_index_ = 0;
     bool editing_mode_ = false;
     std::string current_input_;
+
+    // Search state
+    bool show_search_ = false;
+    std::string search_query_;
+    std::vector<int> search_matches_; // real line indices
+    int current_match_ = -1; // index into search_matches_
+
     std::string status_message_;
     
     // Filename prompt dialog state
@@ -61,6 +72,10 @@ private:
     void TogglePreview();
     void ToggleHelp();
     void ShowSearch();
+    void FindMatches(const std::string& query);
+    void GotoNextMatch();
+    void GotoPrevMatch();
+    void HideSearch();
     void ImportDocx();
     void ExportDocx();
     void InsertLine();
@@ -76,6 +91,7 @@ private:
     ftxui::Component CreateHelpComponent();
     ftxui::Component CreateStatusComponent();
     ftxui::Component CreateFilenamePromptComponent();
+    ftxui::Component CreateSearchPromptComponent();
     
     // Filename prompt operations
     void ShowFilenamePrompt(const std::string& message, const std::string& default_value, std::function<void(const std::string&)> callback);
