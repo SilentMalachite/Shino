@@ -61,11 +61,14 @@ jobs:
           if [[ "$RUNNER_OS" == "Windows" ]]; then
             BIN=$(find build -name "ShinoEditor*.exe" -type f 2>/dev/null | head -n1)
           else
-            BIN=$(find build -name "ShinoEditor" -type f -executable 2>/dev/null | head -n1)
+            # Try multiple locations
+            BIN=$(find build -name "ShinoEditor" -type f 2>/dev/null | grep -v "\.dir\|CMakeFiles" | head -n1)
           fi
           if [[ -z "$BIN" ]]; then
             echo "Error: Built binary not found"
+            echo "Searching for binary files..."
             find build -type f -name "ShinoEditor*" || true
+            find build -type f -perm +111 -name "ShinoEditor*" 2>/dev/null || true
             exit 1
           fi
           echo "Found binary: $BIN"
