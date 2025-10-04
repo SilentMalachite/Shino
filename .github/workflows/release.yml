@@ -29,8 +29,7 @@ jobs:
       - name: Install dependencies (macOS)
         if: runner.os == 'macOS'
         run: |
-          brew update
-          brew install ccache ninja-build
+          brew install ccache ninja
 
       - name: Install dependencies (Windows)
         if: runner.os == 'Windows'
@@ -53,15 +52,11 @@ jobs:
             echo "Proceeding anyway..."
           fi
 
-      - name: Install 7z on Windows (if needed)
-        if: runner.os == 'Windows'
+      - name: Verify and Package
+        shell: bash
         run: |
-          choco install -y 7zip || echo "7z not installed, will use PowerShell fallback"
-
-      - name: Verify binary exists
-        run: |
-          set -e
-          # More robust binary detection
+          set -eux
+          # Find binary
           BIN=""
           if [[ "$RUNNER_OS" == "Windows" ]]; then
             BIN=$(find build -name "ShinoEditor*.exe" -type f 2>/dev/null | head -n1)
@@ -70,14 +65,12 @@ jobs:
           fi
           if [[ -z "$BIN" ]]; then
             echo "Error: Built binary not found"
+            find build -type f -name "ShinoEditor*" || true
             exit 1
           fi
           echo "Found binary: $BIN"
-
-      - name: Package
-        shell: bash
-        run: |
-          set -eux
+          
+          # Package
           OUT_DIR=dist
           mkdir -p "$OUT_DIR"
           NAME=ShinoEditor-${{ runner.os }}-${{ matrix.build_type }}
@@ -85,9 +78,9 @@ jobs:
             NAME=ShinoEditor-${{ runner.os }}-${{ runner.arch }}-${{ matrix.build_type }}
           fi
           if [[ "$RUNNER_OS" == "Windows" ]]; then
-            7z a "$OUT_DIR/$NAME.zip" "$BIN" README.md CHANGELOG.md 2>/dev/null || powershell Compress-Archive -Path "$BIN","README.md","CHANGELOG.md" -DestinationPath "$OUT_DIR/$NAME.zip"
+            powershell Compress-Archive -Path "$BIN","README.md","CHANGELOG.md" -DestinationPath "$OUT_DIR/$NAME.zip"
           else
-            tar czf "$OUT_DIR/$NAME.tar.gz" -C "$(dirname "$BIN")" "$(basename "$BIN")" -C .. README.md CHANGELOG.md
+            tar czf "$OUT_DIR/$NAME.tar.gz" "$BIN" README.md CHANGELOG.md
           fi
 
       - name: Create GitHub Release
