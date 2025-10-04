@@ -40,7 +40,97 @@ std::string MarkdownRenderer::RenderToHtml(const std::string& markdown) const {
     return html_output;
 #else
     // Fallback: simple HTML conversion
-    return "<pre>" + markdown + "</pre>";
+    if (markdown.empty()) {
+        return "";
+    }
+    
+    std::istringstream in(markdown);
+    std::ostringstream out;
+    std::string line;
+    
+    // Simple Markdown to HTML conversion
+    std::regex header1_re(R"(^\s*#\s+(.+))");
+    std::regex header2_re(R"(^\s*##\s+(.+))");
+    std::regex header3_re(R"(^\s*###\s+(.+))");
+    std::regex list_re(R"(^\s*[-*]\s+(.+))");
+    std::regex bold_re(R"(\*\*([^*]+)\*\*)");
+    std::regex italic_re(R"(\*([^*]+)\*)");
+    std::regex code_re(R"(`([^`]+)`)");
+    
+    bool in_list = false;
+    bool in_paragraph = false;
+    
+    while (std::getline(in, line)) {
+        std::smatch match;
+        
+        // Check for empty line
+        if (line.empty() || std::regex_match(line, std::regex(R"(^\s*$)"))) {
+            if (in_paragraph) {
+                out << "</p>\n";
+                in_paragraph = false;
+            }
+            if (in_list) {
+                out << "</ul>\n";
+                in_list = false;
+            }
+            continue;
+        }
+        
+        // Process inline formatting
+        line = std::regex_replace(line, bold_re, "<strong>$1</strong>");
+        line = std::regex_replace(line, italic_re, "<em>$1</em>");
+        line = std::regex_replace(line, code_re, "<code>$1</code>");
+        
+        // Check for headers
+        if (std::regex_search(line, match, header1_re)) {
+            if (in_paragraph) { out << "</p>\n"; in_paragraph = false; }
+            if (in_list) { out << "</ul>\n"; in_list = false; }
+            out << "<h1>" << match[1].str() << "</h1>\n";
+        }
+        else if (std::regex_search(line, match, header2_re)) {
+            if (in_paragraph) { out << "</p>\n"; in_paragraph = false; }
+            if (in_list) { out << "</ul>\n"; in_list = false; }
+            out << "<h2>" << match[1].str() << "</h2>\n";
+        }
+        else if (std::regex_search(line, match, header3_re)) {
+            if (in_paragraph) { out << "</p>\n"; in_paragraph = false; }
+            if (in_list) { out << "</ul>\n"; in_list = false; }
+            out << "<h3>" << match[1].str() << "</h3>\n";
+        }
+        // Check for list items
+        else if (std::regex_search(line, match, list_re)) {
+            if (in_paragraph) { out << "</p>\n"; in_paragraph = false; }
+            if (!in_list) {
+                out << "<ul>\n";
+                in_list = true;
+            }
+            out << "<li>" << match[1].str() << "</li>\n";
+        }
+        // Regular paragraph
+        else {
+            if (in_list) {
+                out << "</ul>\n";
+                in_list = false;
+            }
+            if (!in_paragraph) {
+                out << "<p>";
+                in_paragraph = true;
+            } else {
+                out << " ";
+            }
+            out << line;
+        }
+    }
+    
+    // Close any open tags
+    if (in_paragraph) {
+        out << "</p>\n";
+    }
+    if (in_list) {
+        out << "</ul>\n";
+    }
+    
+    return out.str();
 #endif
 }
 

@@ -48,11 +48,20 @@ bool PandocIO::IsPandocAvailable() {
 std::optional<std::string> PandocIO::ImportDocx(const std::string& docx_path) {
     // Verify pandoc availability
     if (!IsPandocAvailable()) {
-        error::ThrowSystemError("DOCX import", "pandoc is not available");
+        return std::nullopt;
     }
     
     // Validate file security and permissions
-    security::PathValidator::ValidateFileOperation(docx_path, false);
+    try {
+        security::PathValidator::ValidateFileOperation(docx_path, false);
+    } catch (const security::SecurityError&) {
+        return std::nullopt;
+    }
+    
+    // Verify file has .docx extension
+    if (fs::path(docx_path).extension() != ".docx") {
+        return std::nullopt;
+    }
     
     // Build and validate command
     std::vector<std::string> args = {
@@ -60,56 +69,60 @@ std::optional<std::string> PandocIO::ImportDocx(const std::string& docx_path) {
         "-t", "markdown",
         docx_path
     };
-    // Verify file has .docx extension
-    if (fs::path(docx_path).extension() != ".docx") {
-        error::ThrowConversionFailed("document", "markdown", 
-            "Input file must have .docx extension");
+    
+    try {
+        // Build and execute pandoc command
+        std::string command = security::CommandValidator::BuildSafeCommand("pandoc", args);
+        std::string result = ExecutePandocCommand(command);
+        
+        if (result.empty()) {
+            return std::nullopt;
+        }
+        
+        return result;
+    } catch (...) {
+        return std::nullopt;
     }
-    
-    // Build and execute pandoc command
-    std::string command = security::CommandValidator::BuildSafeCommand("pandoc", args);
-    std::string result = ExecutePandocCommand(command);
-    
-    if (result.empty()) {
-        error::ThrowConversionFailed("DOCX", "markdown", 
-            "Failed to convert file: " + docx_path);
-    }
-    
-    return result;
 }
 
 bool PandocIO::ExportDocx(const std::string& markdown_content, const std::string& docx_path) {
     // Verify pandoc availability
     if (!IsPandocAvailable()) {
-        error::ThrowSystemError("DOCX export", "pandoc is not available");
+        return false;
     }
-    
-    // Validate output file security and permissions
-    security::PathValidator::ValidateFileOperation(docx_path, true);
     
     // Verify output file has .docx extension
     if (fs::path(docx_path).extension() != ".docx") {
-        error::ThrowConversionFailed("markdown", "DOCX", 
-            "Output file must have .docx extension");
+        return false;
+    }
+    
+    // Validate output file security and permissions
+    try {
+        security::PathValidator::ValidateFileOperation(docx_path, true);
+    } catch (const security::SecurityError&) {
+        return false;
     }
     
     // Create and validate temporary file
     std::string temp_file = GenerateTempFileName();
-    security::PathValidator::ValidateFileOperation(temp_file, true);
+    
+    try {
+        security::PathValidator::ValidateFileOperation(temp_file, true);
+    } catch (const security::SecurityError&) {
+        return false;
+    }
     
     // Write content to temp file
     std::ofstream temp_out(temp_file);
     if (!temp_out) {
-        error::ThrowSystemError("DOCX export", 
-            "Failed to create temporary file: " + temp_file);
+        return false;
     }
     temp_out << markdown_content;
     temp_out.close();
     
     // Ensure temp file was written
     if (!fs::exists(temp_file)) {
-        error::ThrowSystemError("DOCX export", 
-            "Failed to write temporary file: " + temp_file);
+        return false;
     }
     
     // Build and validate command
@@ -119,24 +132,34 @@ bool PandocIO::ExportDocx(const std::string& markdown_content, const std::string
         temp_file,
         "-o", docx_path
     };
-    std::string command = security::CommandValidator::BuildSafeCommand("pandoc", args);
-    std::string result = ExecutePandocCommand(command);
     
-    // Clean up temp file
     try {
-        fs::remove(temp_file);
+        std::string command = security::CommandValidator::BuildSafeCommand("pandoc", args);
+        std::string result = ExecutePandocCommand(command);
+        
+        // Clean up temp file
+        try {
+            fs::remove(temp_file);
+        } catch (...) {
+            // Log but don't throw - temp file cleanup failure isn't critical
+            std::cerr << "Warning: Failed to remove temporary file: " << temp_file << std::endl;
+        }
+        
+        // Check if output file was created and is readable
+        if (!fs::exists(docx_path)) {
+            return false;
+        }
+        
+        return true;
     } catch (...) {
-        // Log but don't throw - temp file cleanup failure isn't critical
-        std::cerr << "Warning: Failed to remove temporary file: " << temp_file << std::endl;
+        // Clean up temp file
+        try {
+            fs::remove(temp_file);
+        } catch (...) {
+            // Ignore cleanup errors
+        }
+        return false;
     }
-    
-    // Check if output file was created and is readable
-    if (!fs::exists(docx_path)) {
-        error::ThrowConversionFailed("markdown", "DOCX", 
-            "Failed to create output file: " + docx_path);
-    }
-    
-    return true;
 }
 
 std::string PandocIO::GetPandocVersion() {

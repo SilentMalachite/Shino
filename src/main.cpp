@@ -13,19 +13,19 @@ int main(int argc, char* argv[]) {
         }
         
         return app.Run(filename);
-    } catch (const ShinoError& e) {
+    } catch (const ShinoEditor::ShinoError& e) {
         // Format error based on category
         std::cerr << e.what() << std::endl;
         
         // Provide helpful recovery hints based on error category
         switch (e.category()) {
-            case ShinoError::Category::File:
+            case ShinoEditor::ShinoError::Category::File:
                 std::cerr << "Hint: Check file permissions and path" << std::endl;
                 break;
-            case ShinoError::Category::Convert:
+            case ShinoEditor::ShinoError::Category::Convert:
                 std::cerr << "Hint: Ensure pandoc is installed and input format is correct" << std::endl;
                 break;
-            case ShinoError::Category::System:
+            case ShinoEditor::ShinoError::Category::System:
                 std::cerr << "Hint: Check system resources and permissions" << std::endl;
                 break;
             default:
