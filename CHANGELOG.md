@@ -2,6 +2,13 @@
 
 このプロジェクトは [Keep a Changelog](https://keepachangelog.com/ja/1.1.0/) に準拠し、バージョンは [Semantic Versioning](https://semver.org/lang/ja/) に従います。
 
+## [1.2.3] - 2025-01-04
+### 修正
+- `main.cpp` で `ShinoError` クラスの名前空間修飾が欠けていたコンパイルエラーを修正。
+- `pandoc_io.cpp` のエラーハンドリングを改善（例外を投げる代わりに `nullopt` / `false` を返すように修正）。
+- `markdown_renderer.cpp` に md4c が利用できない場合の適切な Markdown→HTML フォールバック実装を追加。
+- `app_test.cpp` の不安定なTUIテストを修正し、より現実的で信頼性の高いテストに改善。
+
 ## [1.2.0] - 2025-09-17
 ## [1.2.1] - 2025-09-19
 ### 修正

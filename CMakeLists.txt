@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(ShinoEditor VERSION 1.2.2 LANGUAGES CXX)
+project(ShinoEditor VERSION 1.2.3 LANGUAGES CXX)
 
 # Set C++ standard
 set(CMAKE_CXX_STANDARD 20)
