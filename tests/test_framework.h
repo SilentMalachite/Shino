@@ -6,6 +6,8 @@
 #include <filesystem>
 #include <cstdlib>
 #include <cstring>
+#include <chrono>
+#include <fstream>
 #ifdef _WIN32
 #include <io.h>
 #include <direct.h>
@@ -60,16 +62,31 @@ static std::vector<std::function<void()>> g_test_functions;
 namespace test_utils {
     // Create a temporary directory for test files
     inline std::filesystem::path create_temp_dir(const std::string& prefix) {
+#ifdef _WIN32
+        // Windows implementation
+        auto temp_dir = std::filesystem::temp_directory_path() / (prefix + "_" + std::to_string(std::chrono::system_clock::now().time_since_epoch().count()));
+        std::filesystem::create_directories(temp_dir);
+        return temp_dir;
+#else
         auto temp_dir = std::filesystem::temp_directory_path() / (prefix + "_XXXXXX");
         char* dir_template = strdup(temp_dir.string().c_str());
         mkdtemp(dir_template);
         auto result = std::filesystem::path(dir_template);
         free(dir_template);
         return result;
+#endif
     }
 
     // Create a temporary file with content
     inline std::filesystem::path create_temp_file(const std::string& content) {
+#ifdef _WIN32
+        // Windows implementation
+        auto temp_path = std::filesystem::temp_directory_path() / ("test_" + std::to_string(std::chrono::system_clock::now().time_since_epoch().count()) + ".tmp");
+        std::ofstream file(temp_path);
+        file << content;
+        file.close();
+        return temp_path;
+#else
         auto temp_path = std::filesystem::temp_directory_path() / "test_XXXXXX";
         char* path_template = strdup(temp_path.string().c_str());
         int fd = mkstemp(path_template);
@@ -80,6 +97,7 @@ namespace test_utils {
         auto result = std::filesystem::path(path_template);
         free(path_template);
         return result;
+#endif
     }
 
     // Clean up a temporary directory and its contents

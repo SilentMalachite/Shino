@@ -6,6 +6,7 @@
 #include <vector>
 #include <stdexcept>
 #include <fstream>
+#include <chrono>
 #ifdef _WIN32
 #include <io.h>
 #else
@@ -119,6 +120,19 @@ public:
                 
                 // Check directory write permission by attempting to create a test file
                 try {
+#ifdef _WIN32
+                    // Windows: Use CreateFile API
+                    std::string test_file = (parent / ("test_write_" + std::to_string(std::chrono::system_clock::now().time_since_epoch().count()) + ".tmp")).string();
+                    std::ofstream test(test_file);
+                    if (!test) {
+                        throw SecurityError(
+                            "Directory not writable",
+                            "Cannot create files in directory: " + parent.string()
+                        );
+                    }
+                    test.close();
+                    fs::remove(test_file);
+#else
                     std::string test_file_template = (parent / "test_write_XXXXXX").string();
                     // Create a mutable buffer for mkstemp
                     std::vector<char> test_file_buf(test_file_template.begin(), test_file_template.end());
@@ -134,6 +148,7 @@ public:
                     close(fd);
                     std::string test_file(test_file_buf.begin(), test_file_buf.end() - 1);
                     fs::remove(test_file);
+#endif
                 } catch (const SecurityError&) {
                     throw; // Re-throw SecurityError as-is
                 } catch (const std::exception& e) {
