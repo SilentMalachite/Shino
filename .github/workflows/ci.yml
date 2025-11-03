@@ -88,12 +88,20 @@ jobs:
           files: ./coverage.info
           fail_ci_if_error: true
 
-      - name: Generate coverage report
+      - name: Find binary
+        id: find_binary
+        shell: bash
+        run: |
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            BIN=$(find build -name "shino.exe" -o -name "ShinoEditor.exe" | head -n 1)
+          else
+            BIN=$(find build -type f -perm +111 -name "shino" -o -name "ShinoEditor" | head -n 1)
+          fi
+          if [ -z "$BIN" ]; then
             echo "::error::Built binary not found"
             exit 1
           fi
           echo "binary_path=$BIN" >> $GITHUB_OUTPUT
-          echo "Found binary: $BIN"
           echo "Found binary: $BIN"
 
       - name: Package binary
@@ -107,6 +115,7 @@ jobs:
           if [[ "${{ runner.os }}" == "Windows" ]]; then
             7z a -r package/$NAME.zip "${{ steps.find_binary.outputs.binary_path }}" || echo "7z failed, binary will be uploaded as-is"
           elif [[ "${{ runner.os }}" == "macOS" ]]; then
+            tar -czf package/$NAME.tar.gz -C "$(dirname "${{ steps.find_binary.outputs.binary_path }}")" "$(basename "${{ steps.find_binary.outputs.binary_path }}")"
           else
             tar -czf package/$NAME.tar.gz -C "$(dirname "${{ steps.find_binary.outputs.binary_path }}")" "$(basename "${{ steps.find_binary.outputs.binary_path }}")"
           fi
