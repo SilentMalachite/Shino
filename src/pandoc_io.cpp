@@ -37,7 +37,11 @@ bool PandocIO::IsPandocAvailable() {
     try {
         std::string cmd = security::CommandValidator::BuildSafeCommand(
             "pandoc", {"--version"});
+#ifdef _WIN32
+        cmd += " > NUL 2>&1";
+#else
         cmd += " > /dev/null 2>&1";
+#endif
         int result = std::system(cmd.c_str());
         return result == 0;
     } catch (...) {
@@ -166,33 +170,45 @@ std::string PandocIO::GetPandocVersion() {
     if (!IsPandocAvailable()) {
         error::ThrowSystemError("version check", "pandoc is not available");
     }
-    
-    std::string version = ExecutePandocCommand("pandoc --version | head -1");
-    if (version.empty()) {
+    std::string command = security::CommandValidator::BuildSafeCommand("pandoc", {"--version"});
+    std::string output = ExecutePandocCommand(command);
+    if (output.empty()) {
         error::ThrowSystemError("version check", "failed to get pandoc version");
     }
-    
-    return version;
+    std::istringstream stream(output);
+    std::string first_line;
+    std::getline(stream, first_line);
+    if (first_line.empty()) {
+        error::ThrowSystemError("version check", "failed to parse pandoc version");
+    }
+    return first_line;
 }
 
 std::string PandocIO::ExecutePandocCommand(const std::string& command) {
-    std::string result;
-    
 #ifdef _WIN32
-    std::unique_ptr<FILE, decltype(&_pclose)> pipe(_popen(command.c_str(), "r"), _pclose);
+    FILE* pipe = _popen(command.c_str(), "r");
 #else
-    std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(command.c_str(), "r"), pclose);
+    FILE* pipe = popen(command.c_str(), "r");
 #endif
-    
     if (!pipe) {
         return "";
     }
-    
-    char buffer[128];
-    while (fgets(buffer, sizeof(buffer), pipe.get()) != nullptr) {
+
+    std::string result;
+    char buffer[256];
+    while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
         result += buffer;
     }
-    
+
+#ifdef _WIN32
+    int status = _pclose(pipe);
+#else
+    int status = pclose(pipe);
+#endif
+    if (status != 0) {
+        return "";
+    }
+
     return result;
 }
 

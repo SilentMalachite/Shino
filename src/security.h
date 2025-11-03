@@ -39,7 +39,9 @@ public:
             std::regex("\\|"),    // Command chaining
             std::regex(";"),      // Command separation
             std::regex("`"),      // Command substitution
-            std::regex("\\\\"),   // Windows path traversal
+#ifndef _WIN32
+            std::regex("\\\\"),   // Escape character injection
+#endif
         };
         
         for (const auto& pattern : dangerous_patterns) {

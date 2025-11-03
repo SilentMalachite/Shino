@@ -16,7 +16,7 @@
 |------|------|
 | Ctrl+O | 保存 |
 | Ctrl+X | 終了 |
-| Ctrl+W | 検索（未実装） |
+| Ctrl+W | 検索 |
 | Ctrl+G | ヘルプ切替 |
 | Ctrl+J | ブロック折りたたみ/展開 |
 | PageUp/PageDown | ブロックの上下移動 |
