@@ -32,7 +32,7 @@ cmake -S . -B build -DSHINO_BUILD_PERF_TESTS=ON && cmake --build build -j
 ctest --test-dir build --output-on-failure
 
 # 特定のテストの実行
-./build/block_model_tests
+./build/shino_block_model_tests
 ./build/markdown_renderer_tests
 ./build/pandoc_io_tests
 ./build/app_tests

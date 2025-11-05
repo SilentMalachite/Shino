@@ -34,6 +34,7 @@
 - FTXUI（見つからなければ自動取得）
 - md4c（任意、HTML出力に使用）
 - pandoc（任意、DOCX入出力に使用）
+  - 未インストールの場合、DOCX インポート/エクスポート機能（Ctrl+I/Ctrl+E）は利用できません。アプリは安全にフォールバックし、処理は行われません（エラーメッセージまたは無効化）。
 
 ### 依存パッケージのインストール例
 
@@ -88,6 +89,11 @@ cmake -S . -B build -DSHINO_BUILD_TESTS=ON
 cmake --build build -j
 ctest --test-dir build --output-on-failure
 ```
+
+オプション:
+- `-DSHINO_BUILD_TESTS=ON/OFF` ユニットテストのビルド有無（デフォルト: OFF）
+- `-DSHINO_BUILD_PERF_TESTS=ON/OFF` パフォーマンステストのビルド/実行有無（デフォルト: ON）
+  - いずれかのテストが有効な場合、CTest が自動的に有効化されます。
 
 ## CI
 

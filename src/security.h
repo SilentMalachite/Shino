@@ -29,38 +29,19 @@ public:
 class PathValidator {
 public:
     static void ValidatePathSecurity(const std::string& path) {
-        std::string abs_path = fs::absolute(path).string();
-        
-        // Check for common dangerous patterns
-        const std::vector<std::regex> dangerous_patterns = {
-            std::regex("\\.\\."), // Directory traversal
-            std::regex("^~"),     // Home directory expansion
-            std::regex("\\$"),    // Environment variable expansion
-            std::regex("\\|"),    // Command chaining
-            std::regex(";"),      // Command separation
-            std::regex("`"),      // Command substitution
-#ifndef _WIN32
-            std::regex("\\\\"),   // Escape character injection
-#endif
-        };
-        
-        for (const auto& pattern : dangerous_patterns) {
-            if (std::regex_search(path, pattern)) {
-                throw SecurityError(
-                    "Invalid characters in path",
-                    "Path contains potentially dangerous characters: " + path
-                );
+        if (path.empty()) {
+            throw SecurityError("Empty path", "Provided path is empty");
+        }
+        // Reject NUL byte and non-printable control chars to prevent injection
+        for (unsigned char c : path) {
+            if (c == '\0' || (c < 0x20 && c != '\t' && c != '\n')) {
+                throw SecurityError("Invalid control character in path", "Path contains non-printable characters");
             }
         }
-        
-        // Normalize and validate path
+        // Normalize and validate path first, then apply policy checks if needed
         try {
             fs::path norm_path = fs::weakly_canonical(fs::absolute(path));
-            std::string norm_str = norm_path.string();
-            
-            // Additional checks can be added here based on requirements
-            // For example, restricting to specific directories
-            
+            (void)norm_path; // reserved for future policy checks
         } catch (const fs::filesystem_error& e) {
             throw SecurityError(
                 "Path validation failed",

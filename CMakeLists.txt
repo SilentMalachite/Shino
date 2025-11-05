@@ -85,17 +85,22 @@ endif()
 # -----------------------
 option(SHINO_BUILD_PERF_TESTS "Build performance tests" ON)
 
+# Enable CTest whenever any tests are enabled (unit or performance)
+if(SHINO_BUILD_TESTS OR SHINO_BUILD_PERF_TESTS)
+  enable_testing()
+endif()
+
 if(SHINO_BUILD_TESTS)
   enable_testing()
   
   # Original unit test
-  add_executable(sino_tests
+  add_executable(shino_block_model_tests
     tests/block_model_test.cpp
     src/block_model.cpp
   )
-  target_include_directories(sino_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
-  target_compile_features(sino_tests PRIVATE cxx_std_20)
-  add_test(NAME sino_block_model_tests COMMAND sino_tests)
+  target_include_directories(shino_block_model_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+  target_compile_features(shino_block_model_tests PRIVATE cxx_std_20)
+  add_test(NAME shino_block_model_tests COMMAND shino_block_model_tests)
   
   # Add new unit tests
   add_executable(markdown_renderer_tests

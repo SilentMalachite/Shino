@@ -1,6 +1,8 @@
 # Build artifacts
 build/
 build_*/
+cmake-build-*/
+cmake-build-debug/
 dist/
 install/
 
@@ -17,6 +19,10 @@ CTestTestfile.cmake
 Makefile
 *.cmake
 CPack*Config.cmake
+
+# External deps/cache
+_deps/
+Testing/
 
 # Build outputs
 *.exe

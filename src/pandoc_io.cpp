@@ -16,34 +16,28 @@ namespace ShinoEditor {
 
 // Generate a secure temporary file name
 std::string PandocIO::GenerateTempFileName() {
-    auto now = std::chrono::steady_clock::now().time_since_epoch();
-    auto seed = std::chrono::duration_cast<std::chrono::nanoseconds>(now).count();
-    std::mt19937 gen(static_cast<std::mt19937::result_type>(seed));
-    std::uniform_int_distribution<> dis(10000000, 99999999);
-    
+    fs::path dir;
+    try {
+        dir = fs::temp_directory_path();
+    } catch (...) {
 #ifdef _WIN32
-    const char* temp_dir = std::getenv("TEMP");
-    if (!temp_dir) temp_dir = std::getenv("TMP");
-    if (!temp_dir) temp_dir = "C:\\Windows\\Temp";
-    return std::string(temp_dir) + "\\sino_temp_" + std::to_string(dis(gen)) + ".md";
+        dir = "C:/Windows/Temp";
 #else
-    const char* temp_dir = std::getenv("TMPDIR");
-    if (!temp_dir) temp_dir = "/tmp";
-    return std::string(temp_dir) + "/sino_temp_" + std::to_string(dis(gen)) + ".md";
+        dir = "/tmp";
 #endif
+    }
+    // Use unique_path to avoid collisions
+    fs::path pattern = dir / fs::path("sino_temp_%%%%-%%%%-%%%%.md");
+    fs::path unique = fs::unique_path(pattern);
+    return unique.string();
 }
 
 bool PandocIO::IsPandocAvailable() {
     try {
-        std::string cmd = security::CommandValidator::BuildSafeCommand(
-            "pandoc", {"--version"});
-#ifdef _WIN32
-        cmd += " > NUL 2>&1";
-#else
-        cmd += " > /dev/null 2>&1";
-#endif
-        int result = std::system(cmd.c_str());
-        return result == 0;
+        // Execute pandoc --version and consider it available if we get any output
+        std::string cmd = security::CommandValidator::BuildSafeCommand("pandoc", {"--version"});
+        std::string output = ExecutePandocCommand(cmd);
+        return !output.empty();
     } catch (...) {
         return false;
     }
