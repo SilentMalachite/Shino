@@ -71,18 +71,11 @@ public:
                 }
                 
                 // Check write permission
-                try {
-                    std::ofstream test(fs_path, std::ios::app);
-                    if (!test) {
-                        throw SecurityError(
-                            "File not writable",
-                            "Cannot write to file: " + path
-                        );
-                    }
-                } catch (const std::exception& e) {
+                std::ofstream test(fs_path, std::ios::app);
+                if (!test) {
                     throw SecurityError(
-                        "Write permission check failed",
-                        e.what()
+                        "File not writable",
+                        "Cannot write to file: " + path
                     );
                 }
             } else {
@@ -158,18 +151,11 @@ public:
             }
             
             // Check read permission
-            try {
-                std::ifstream test(fs_path);
-                if (!test) {
-                    throw SecurityError(
-                        "File not readable",
-                        "Cannot read file: " + path
-                    );
-                }
-            } catch (const std::exception& e) {
+            std::ifstream test(fs_path);
+            if (!test) {
                 throw SecurityError(
-                    "Read permission check failed",
-                    e.what()
+                    "File not readable",
+                    "Cannot read file: " + path
                 );
             }
         }

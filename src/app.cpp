@@ -67,11 +67,11 @@ bool App::LoadFile(const std::string& filename) {
         }
         
         lines_.clear();
-    std::string line;
-    while (std::getline(file, line)) {
-        lines_.push_back(line);
-    }
-    
+        std::string line;
+        while (std::getline(file, line)) {
+            lines_.push_back(line);
+        }
+        
         filename_ = filename;
         modified_ = false;
         UpdateBlockModel();
@@ -109,11 +109,11 @@ bool App::SaveFileAs(const std::string& filename) {
             SetStatusMessage("Failed to save file: " + filename);
             return false;
         }
-    
-    for (const auto& line : lines_) {
-        file << line << '\n';
-    }
-    
+        
+        for (const auto& line : lines_) {
+            file << line << '\n';
+        }
+        
         filename_ = filename;
         modified_ = false;
         SetStatusMessage("Saved: " + filename);
