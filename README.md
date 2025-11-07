@@ -92,7 +92,7 @@ ctest --test-dir build --output-on-failure
 
 オプション:
 - `-DSHINO_BUILD_TESTS=ON/OFF` ユニットテストのビルド有無（デフォルト: OFF）
-- `-DSHINO_BUILD_PERF_TESTS=ON/OFF` パフォーマンステストのビルド/実行有無（デフォルト: ON）
+- `-DSHINO_BUILD_PERF_TESTS=ON/OFF` パフォーマンステストのビルド/実行有無（デフォルト: OFF）
   - いずれかのテストが有効な場合、CTest が自動的に有効化されます。
 
 ## CI
