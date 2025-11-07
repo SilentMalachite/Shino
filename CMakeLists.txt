@@ -83,7 +83,7 @@ endif()
 # -----------------------
 # Tests (header-only style)
 # -----------------------
-option(SHINO_BUILD_PERF_TESTS "Build performance tests" ON)
+option(SHINO_BUILD_PERF_TESTS "Build performance tests" OFF)
 
 # Enable CTest whenever any tests are enabled (unit or performance)
 if(SHINO_BUILD_TESTS OR SHINO_BUILD_PERF_TESTS)
