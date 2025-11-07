@@ -9,6 +9,7 @@
 #include <random>
 #include <chrono>
 #include <filesystem>
+#include <system_error>
 
 namespace fs = std::filesystem;
 
@@ -26,10 +27,24 @@ std::string PandocIO::GenerateTempFileName() {
         dir = "/tmp";
 #endif
     }
-    // Use unique_path to avoid collisions
-    fs::path pattern = dir / fs::path("sino_temp_%%%%-%%%%-%%%%.md");
-    fs::path unique = fs::unique_path(pattern);
-    return unique.string();
+    std::random_device rd;
+    std::mt19937_64 gen(rd());
+    std::uniform_int_distribution<uint64_t> dist;
+
+    for (int attempt = 0; attempt < 64; ++attempt) {
+        const auto now = std::chrono::high_resolution_clock::now().time_since_epoch().count();
+        std::ostringstream oss;
+        oss << "shino_temp_" << std::hex << now << '_' << dist(gen) << ".md";
+        const fs::path candidate = dir / oss.str();
+
+        std::error_code ec;
+        if (!fs::exists(candidate, ec)) {
+            return candidate.string();
+        }
+    }
+
+    // Fallback in the unlikely event all attempts fail
+    return (dir / "shino_temp_fallback.md").string();
 }
 
 bool PandocIO::IsPandocAvailable() {
