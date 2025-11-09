@@ -26,6 +26,7 @@ jobs:
             ~/.ccache
             build/
           key: ${{ runner.os }}-${{ matrix.build_type }}-${{ hashFiles('**/CMakeLists.txt', '**/*.cmake') }}
+          restore-keys: |
             ${{ runner.os }}-${{ matrix.build_type }}-
 
       - name: Set up CMake and Ninja
@@ -33,17 +34,21 @@ jobs:
         with:
           ninjaVersion: latest
 
+      - name: Install Pandoc (Windows)
+        if: runner.os == 'Windows'
+        run: choco install pandoc -y
+
       - name: Install dependencies (Ubuntu)
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential ccache ninja-build clang-tidy lcov libmd4c-dev
+          sudo apt-get install -y build-essential ccache ninja-build clang-tidy lcov libmd4c-dev pandoc
 
       - name: Install dependencies (macOS)
         if: runner.os == 'macOS'
         run: |
           brew update
-          brew install ccache ninja
+          brew install ccache ninja pandoc
 
       - name: Configure
         shell: bash
@@ -65,8 +70,15 @@ jobs:
       - name: Static Analysis (Linux)
         if: runner.os == 'Linux'
         run: |
-          cd build
-          run-clang-tidy -p . ../src/*.cpp
+          if command -v run-clang-tidy >/dev/null 2>&1; then
+            cd build
+            run-clang-tidy -p . ../src/*.cpp
+          elif command -v clang-tidy >/dev/null 2>&1; then
+            cd build
+            clang-tidy ../src/*.cpp -p .
+          else
+            echo "run-clang-tidy not found - skipping static analysis"
+          fi
           
       - name: Test
         run: ctest --test-dir build --output-on-failure -C ${{ matrix.build_type }}
