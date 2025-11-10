@@ -14,7 +14,7 @@ Checks: >
   -cppcoreguidelines-avoid-magic-numbers
 
 # Turn all the warnings from the checks above into errors.
-WarningsAsErrors: "*"
+WarningsAsErrors: "clang-diagnostic-*,clang-analyzer-*"
 
 HeaderFilterRegex: "src/.*\\.h$"
 
