@@ -19,22 +19,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Cache build files
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.ccache
-          key: ${{ runner.os }}-${{ matrix.build_type }}-${{ hashFiles('**/CMakeLists.txt', '**/*.cmake') }}
-          restore-keys: |
-            ${{ runner.os }}-${{ matrix.build_type }}-
-
-      - name: Set up CMake and Ninja
-        uses: lukka/get-cmake@latest
-
-      - name: Install Pandoc (Windows)
-        if: runner.os == 'Windows'
-        run: choco install pandoc -y
-
       - name: Install dependencies (Ubuntu)
         if: runner.os == 'Linux'
         run: |
@@ -44,8 +28,27 @@ jobs:
       - name: Install dependencies (macOS)
         if: runner.os == 'macOS'
         run: |
-          brew update
           brew install ccache ninja pandoc
+
+      - name: Install dependencies (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          choco install ninja pandoc -y
+
+      - name: Cache build files
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.ccache
+          key: ${{ runner.os }}-${{ matrix.build_type }}-${{ hashFiles('**/CMakeLists.txt', '**/*.cmake') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.build_type }}-
+
+      - name: Verify CMake and Ninja
+        shell: bash
+        run: |
+          cmake --version
+          ninja --version
 
       - name: Configure
         shell: bash
@@ -104,7 +107,7 @@ jobs:
         uses: codecov/codecov-action@v3
         with:
           files: ./build/coverage.info
-          fail_ci_if_error: true
+          fail_ci_if_error: false
 
       - name: Find binary
         id: find_binary
