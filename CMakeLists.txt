@@ -15,6 +15,13 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
 endif()
 
+# Enable coverage for Debug builds on Linux
+option(ENABLE_COVERAGE "Enable coverage reporting" OFF)
+if(ENABLE_COVERAGE AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    add_compile_options(--coverage -O0 -g)
+    add_link_options(--coverage)
+endif()
+
 option(SHINO_BUILD_APP "Build ShinoEditor application" ON)
 option(SHINO_BUILD_TESTS "Build Shino tests" ON)
 
