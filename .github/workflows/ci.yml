@@ -116,7 +116,7 @@ jobs:
           if [[ "${{ runner.os }}" == "Windows" ]]; then
             BIN=$(find build -name "shino.exe" -o -name "ShinoEditor.exe" | head -n 1)
           else
-            BIN=$(find build -type f -perm +111 -name "shino" -o -name "ShinoEditor" | head -n 1)
+            BIN=$(find build -type f -perm /111 -name "shino" -o -name "ShinoEditor" | head -n 1)
           fi
           if [ -z "$BIN" ]; then
             echo "::error::Built binary not found"
